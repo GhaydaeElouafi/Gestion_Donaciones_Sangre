@@ -269,7 +269,100 @@ public class EsqueletoGestionDonacionesSangre {
 			if (conn!=null) conn.close();
 		
 		}
-		
+		// TEST 1: caso correcto
+		try {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+
+			anular_traspaso(1, 1, 2, java.sql.Date.valueOf("2025-01-11"));
+			System.out.println("TEST 1 OK");
+
+		} catch (SQLException e) {
+			System.out.println("TEST 1 MAL");
+
+		} finally {
+			if (cll_reinicia != null) cll_reinicia.close();
+			if (conn != null) conn.close();
+			cll_reinicia = null;
+			conn = null;
+		}
+
+		// TEST 2: tipo de sangre inexistente
+		try {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+
+			anular_traspaso(99, 1, 2, java.sql.Date.valueOf("2025-01-11"));
+			System.out.println("TEST 2 MAL");
+
+		} catch (SQLException e) {
+			System.out.println("TEST 2 OK");
+
+		} finally {
+			if (cll_reinicia != null) cll_reinicia.close();
+			if (conn != null) conn.close();
+			cll_reinicia = null;
+			conn = null;
+		}
+
+		// TEST 3: hospital inexistente
+		try {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+
+			anular_traspaso(1, 99, 2, java.sql.Date.valueOf("2025-01-11"));
+			System.out.println("TEST 3 MAL");
+
+		} catch (SQLException e) {
+			System.out.println("TEST 3 OK");
+
+		} finally {
+			if (cll_reinicia != null) cll_reinicia.close();
+			if (conn != null) conn.close();
+			cll_reinicia = null;
+			conn = null;
+		}
+
+		// TEST 4: traspaso inexistente
+		try {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+
+			anular_traspaso(1, 1, 2, java.sql.Date.valueOf("2025-01-20"));
+			System.out.println("TEST 4 MAL");
+
+		} catch (SQLException e) {
+			System.out.println("TEST 4 OK");
+
+		} finally {
+			if (cll_reinicia != null) cll_reinicia.close();
+			if (conn != null) conn.close();
+			cll_reinicia = null;
+			conn = null;
+		}
+
+		// TEST 5: reserva insuficiente
+		try {
+			conn = pool.getConnection();
+			cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			cll_reinicia.execute();
+
+			anular_traspaso(2, 3, 2, java.sql.Date.valueOf("2025-01-16"));
+			System.out.println("TEST 5 MAL");
+
+		} catch (SQLException e) {
+			System.out.println("TEST 5 OK");
+
+		} finally {
+			if (cll_reinicia != null) cll_reinicia.close();
+			if (conn != null) conn.close();
+			cll_reinicia = null;
+			conn = null;
+		}
 		
 	}
 }
