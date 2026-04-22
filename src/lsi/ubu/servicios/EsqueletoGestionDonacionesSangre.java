@@ -65,20 +65,159 @@ public class EsqueletoGestionDonacionesSangre {
 		
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
 		Connection con=null;
+		java.sql.PreparedStatement ps = null;
+		java.sql.ResultSet rs = null;
+		float cantidad = 0;
+		float reservaDestino = 0;
 
 	
 		try{
 			con = pool.getConnection();
 			//Completar por el alumno
+			// comprobar tipo de sangre
+			ps = con.prepareStatement("select count(*) from tipo_sangre where id_tipo_sangre = ?");
+			ps.setInt(1, m_ID_Tipo_Sangre);
+			rs = ps.executeQuery();
+			rs.next();
+
+			if (rs.getInt(1) == 0) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.TIPO_SANGRE_NO_EXISTE);
+			}
+
+			rs.close();
+			ps.close();
+
+			// comprobar hospital origen
+			ps = con.prepareStatement("select count(*) from hospital where id_hospital = ?");
+			ps.setInt(1, m_ID_Hospital_Origen);
+			rs = ps.executeQuery();
+			rs.next();
+
+			if (rs.getInt(1) == 0) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.HOSPITAL_NO_EXISTE);
+			}
+
+			rs.close();
+			ps.close();
+
+			// comprobar hospital destino
+			ps = con.prepareStatement("select count(*) from hospital where id_hospital = ?");
+			ps.setInt(1, m_ID_Hospital_Destino);
+			rs = ps.executeQuery();
+			rs.next();
+
+			if (rs.getInt(1) == 0) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.HOSPITAL_NO_EXISTE);
+			}
+
+			rs.close();
+			ps.close();
+
+			// buscar el traspaso
+			ps = con.prepareStatement(
+					"select cantidad from traspaso "
+					+ "where id_tipo_sangre = ? "
+					+ "and id_hospital_origen = ? "
+					+ "and id_hospital_destino = ? "
+					+ "and fecha_traspaso = ?");
+			ps.setInt(1, m_ID_Tipo_Sangre);
+			ps.setInt(2, m_ID_Hospital_Origen);
+			ps.setInt(3, m_ID_Hospital_Destino);
+			ps.setDate(4, new java.sql.Date(m_Fecha_Traspaso.getTime()));
+			rs = ps.executeQuery();
+
+			if (!rs.next()) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.VALOR_CANTIDAD_TRASPASO_INCORRECTO);
+			}
+
+			cantidad = rs.getFloat(1);
+
+			rs.close();
+			ps.close();
+
+			// mirar reserva del hospital destino
+			ps = con.prepareStatement(
+					"select cantidad from reserva_hospital "
+					+ "where id_tipo_sangre = ? and id_hospital = ?");
+			ps.setInt(1, m_ID_Tipo_Sangre);
+			ps.setInt(2, m_ID_Hospital_Destino);
+			rs = ps.executeQuery();
+
+			if (!rs.next()) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.VALOR_RESERVA_INCORRECTO);
+			}
+
+			reservaDestino = rs.getFloat(1);
+
+			rs.close();
+			ps.close();
+
+			// comprobar que no quede negativa
+			if (reservaDestino < cantidad) {
+				throw new GestionDonacionesSangreException(
+						GestionDonacionesSangreException.VALOR_RESERVA_INCORRECTO);
+			}
+
+			// borrar traspaso
+			ps = con.prepareStatement(
+					"delete from traspaso "
+					+ "where id_tipo_sangre = ? "
+					+ "and id_hospital_origen = ? "
+					+ "and id_hospital_destino = ? "
+					+ "and fecha_traspaso = ?");
+			ps.setInt(1, m_ID_Tipo_Sangre);
+			ps.setInt(2, m_ID_Hospital_Origen);
+			ps.setInt(3, m_ID_Hospital_Destino);
+			ps.setDate(4, new java.sql.Date(m_Fecha_Traspaso.getTime()));
+			ps.executeUpdate();
+
+			ps.close();
+
+			// sumar al origen
+			ps = con.prepareStatement(
+					"update reserva_hospital "
+					+ "set cantidad = cantidad + ? "
+					+ "where id_tipo_sangre = ? and id_hospital = ?");
+			ps.setFloat(1, cantidad);
+			ps.setInt(2, m_ID_Tipo_Sangre);
+			ps.setInt(3, m_ID_Hospital_Origen);
+			ps.executeUpdate();
+
+			ps.close();
+
+			// restar al destino
+			ps = con.prepareStatement(
+					"update reserva_hospital "
+					+ "set cantidad = cantidad - ? "
+					+ "where id_tipo_sangre = ? and id_hospital = ?");
+			ps.setFloat(1, cantidad);
+			ps.setInt(2, m_ID_Tipo_Sangre);
+			ps.setInt(3, m_ID_Hospital_Destino);
+			ps.executeUpdate();
+
+			ps.close();
+
+			con.commit();
 			
 		} catch (SQLException e) {
-			//Completar por el alumno			
+			//Completar por el alumno	
+			if (con != null) {
+				con.rollback();
+			}
 			
 			logger.error(e.getMessage());
 			throw e;		
 
 		} finally {
 			/*A rellenar por el alumno*/
+			if (rs != null) rs.close();
+			if (ps != null) ps.close();
+			if (con != null) con.close();
 		}		
 	}
 	
@@ -88,12 +227,13 @@ public class EsqueletoGestionDonacionesSangre {
 				
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
 		Connection con=null;
+		
 
 	
 		try{
 			con = pool.getConnection();
 			//Completar por el alumno
-			
+
 		} catch (SQLException e) {
 			//Completar por el alumno			
 			
