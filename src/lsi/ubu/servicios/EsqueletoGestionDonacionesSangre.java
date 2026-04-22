@@ -73,7 +73,6 @@ public class EsqueletoGestionDonacionesSangre {
 	
 		try{
 			con = pool.getConnection();
-			//Completar por el alumno
 			// comprobar tipo de sangre
 			ps = con.prepareStatement("select count(*) from tipo_sangre where id_tipo_sangre = ?");
 			ps.setInt(1, m_ID_Tipo_Sangre);
@@ -204,8 +203,8 @@ public class EsqueletoGestionDonacionesSangre {
 
 			con.commit();
 			
-		} catch (SQLException e) {
-			//Completar por el alumno	
+			
+		} catch (SQLException e) {	
 			if (con != null) {
 				con.rollback();
 			}
@@ -214,7 +213,6 @@ public class EsqueletoGestionDonacionesSangre {
 			throw e;		
 
 		} finally {
-			/*A rellenar por el alumno*/
 			if (rs != null) rs.close();
 			if (ps != null) ps.close();
 			if (con != null) con.close();
@@ -270,7 +268,8 @@ public class EsqueletoGestionDonacionesSangre {
 			if (cll_reinicia!=null) cll_reinicia.close();
 			if (conn!=null) conn.close();
 		
-		}			
+		}
+		
 		
 	}
 }
