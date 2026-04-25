@@ -333,13 +333,15 @@ public class EsqueletoGestionDonacionesSangre {
 	            );
 	        }
 	       
-			String sql = "SELECT t.id_traspaso, t.cantidad, t.fecha_traspaso, " +
-                    "h.nombre, ts.descripcion " +
-                    "FROM traspaso t " +
-                    "JOIN hospital h ON t.id_hospital_destino = h.id_hospital " +
-                    "JOIN tipo_sangre ts ON t.id_tipo_sangre = ts.id_tipo_sangre " +
-                    "WHERE ts.descripcion = ? " +
-                    "ORDER BY t.id_hospital_destino, t.fecha_traspaso";
+	        String sql = "SELECT t.id_traspaso, t.cantidad, t.fecha_traspaso, " +
+	                "h.nombre, ts.descripcion, r.cantidad AS reserva " +
+	                "FROM traspaso t " +
+	                "JOIN hospital h ON t.id_hospital_destino = h.id_hospital " +
+	                "JOIN tipo_sangre ts ON t.id_tipo_sangre = ts.id_tipo_sangre " +
+	                "JOIN reserva_hospital r ON r.id_tipo_sangre = t.id_tipo_sangre " +
+	                "AND r.id_hospital = t.id_hospital_destino " +
+	                "WHERE ts.descripcion = ? " +
+	                "ORDER BY t.id_hospital_destino, t.fecha_traspaso";
 
 			st = con.prepareStatement(sql);
 	        st.setString(1, m_Tipo_Sangre);
@@ -352,7 +354,8 @@ public class EsqueletoGestionDonacionesSangre {
 	                rs.getString("nombre") + " - " +
 	                rs.getString("descripcion") + " - " +
 	                rs.getFloat("cantidad") + " - " +
-	                rs.getDate("fecha_traspaso")
+	                rs.getDate("fecha_traspaso") + " - " +
+	                rs.getFloat("reserva")
 	            );
 	        }
 
@@ -388,6 +391,7 @@ public class EsqueletoGestionDonacionesSangre {
 		
     // Tests del metodo consulta_traspasos() :
 		// TEST CONSULTA 1: caso correcto
+		System.out.println("\nTEST METODO CONSULTA_TRAPASOS\n");
 		try {
 		    conn = pool.getConnection();
 		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
@@ -426,9 +430,9 @@ public class EsqueletoGestionDonacionesSangre {
 		    conn = null;
 		}
 
-		}
     // Tests del metodo anular_traspaso() :
 		// TEST 1: caso correcto
+		System.out.println("\nTEST METODO ANULAR_TRASPASO\n");
 		try {
 			conn = pool.getConnection();
 			cll_reinicia = conn.prepareCall("{call inicializa_test}");
@@ -525,6 +529,7 @@ public class EsqueletoGestionDonacionesSangre {
 
 		// Tests del metodo realizar_donacion() :
 		// Test 1: Todo funciona bien
+		System.out.println("\nTEST METODO REALIZAR_DONACION\n");
 		System.out.println("TEST DONACION 1: Todo funciona bien");
 		
 	    try {
