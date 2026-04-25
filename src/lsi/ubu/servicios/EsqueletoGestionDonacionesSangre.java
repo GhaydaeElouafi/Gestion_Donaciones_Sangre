@@ -205,18 +205,135 @@ public class EsqueletoGestionDonacionesSangre {
 		CallableStatement cll_reinicia=null;
 		Connection conn = null;
 		
-		try {
-			//Reinicio filas
-			conn = pool.getConnection();
-			cll_reinicia = conn.prepareCall("{call inicializa_test}");
-			cll_reinicia.execute();
-		} catch (SQLException e) {				
-			logger.error(e.getMessage());			
-		} finally {
-			if (cll_reinicia!=null) cll_reinicia.close();
-			if (conn!=null) conn.close();
 		
-		}			
+		// Tests del metodo realizar_donacion() :
+		// Test 1: Todo funciona bien
+		System.out.println("TEST DONACION 1: Todo funciona bien");
 		
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 1 OK");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 1 MAL");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }	
+	    
+	    
+	    //Test 2: El donante no existe
+		System.out.println("TEST DONACION 2: El donante no existe");
+		
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("inexistente", 1, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 2 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 2 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 3: El hospital no existe
+		System.out.println("TEST DONACION 3: El hospital no existe");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 999, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 3 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 3 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 4: Se exceden 0.45L de sangre
+		System.out.println("TEST DONACION 4: Se exceden 0.45L de sangre");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, 0.6f, new Date());
+
+	        System.out.println("TEST DONACION 4 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 4 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    // Test 5: Cantidad negativa de sangre
+		System.out.println("TEST DONACION 5: Cantidad negativa de sangre");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, -0.2f, new Date());
+
+	        System.out.println("TEST DONACION 5 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 5 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 6: Segunda donacion antes de 15 dias
+	    System.out.println("TEST DONACION 6: Segunda donacion antes de 15 dias");
+	    
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        // Primera donacion correcta
+	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2025-01-10"));
+
+	        // Segunda donacion (solo 5 dias despues)
+	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2025-01-15"));
+
+	        System.out.println("TEST DONACION 6 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 6 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+
 	}
 }
