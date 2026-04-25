@@ -40,21 +40,107 @@ public class EsqueletoGestionDonacionesSangre {
 		
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
 		Connection con=null;
+	    java.sql.PreparedStatement ps = null;
+	    java.sql.ResultSet rs = null;
 
-	
-		try{
-			con = pool.getConnection();
-			//Completar por el alumno
-			
-		} catch (SQLException e) {
-			//Completar por el alumno			
-			
-			logger.error(e.getMessage());
-			throw e;		
+	    try {
+	        con = pool.getConnection();
+	        con.setAutoCommit(false);
 
-		} finally {
-			/*A rellenar por el alumno*/
-		}
+	        // Comprobamos donante
+	        ps = con.prepareStatement("SELECT 1 FROM donante WHERE nif = ?");
+	        ps.setString(1, m_NIF);
+	        rs = ps.executeQuery();
+
+	        if (!rs.next()) {
+	            throw new GestionDonacionesSangreException(GestionDonacionesSangreException.DONANTE_NO_EXISTE);
+	        }
+	        rs.close();
+	        ps.close();
+
+	        // Comprobamos el hospital
+	        ps = con.prepareStatement("SELECT 1 FROM hospital WHERE id_hospital = ?");
+	        ps.setInt(1, m_ID_Hospital);
+	        rs = ps.executeQuery();
+
+	        if (!rs.next()) {
+	            throw new GestionDonacionesSangreException(GestionDonacionesSangreException.HOSPITAL_NO_EXISTE);
+	        }
+	        rs.close();
+	        ps.close();
+
+	        // Validamos al cantidad
+	        if (m_Cantidad <= 0 || m_Cantidad > 0.45f) {
+	            throw new GestionDonacionesSangreException(GestionDonacionesSangreException.VALOR_CANTIDAD_DONACION_INCORRECTO);
+	        }
+
+	        // Miramos que la ultima donacion no haya sido hace menos de 15 dias
+	        ps = con.prepareStatement(
+	            "SELECT MAX(fecha_donacion) FROM donacion WHERE nif_donante = ?");
+	        ps.setString(1, m_NIF);
+	        rs = ps.executeQuery();
+
+	        if (rs.next() && rs.getDate(1) != null) {
+
+	            long diff = m_Fecha_Donacion.getTime() - rs.getDate(1).getTime();
+	            long dias = diff / (1000L * 60 * 60 * 24);
+
+	            if (dias < 15) {
+	                throw new GestionDonacionesSangreException(GestionDonacionesSangreException.DONANTE_EXCEDE);
+	            }
+	        }
+
+	        rs.close();
+	        ps.close();
+
+	        // Insertamos la donacion
+	        ps = con.prepareStatement(
+	            "INSERT INTO donacion (nif_donante, cantidad, fecha_donacion) VALUES (?, ?, ?)");
+	        ps.setString(1, m_NIF);
+	        ps.setFloat(2, m_Cantidad);
+	        ps.setDate(3, new java.sql.Date(m_Fecha_Donacion.getTime()));
+	        ps.executeUpdate();
+	        ps.close();
+
+	        // Obtenemos el tipo de sangre
+	        ps = con.prepareStatement(
+	            "SELECT id_tipo_sangre FROM donante WHERE nif = ?");
+	        ps.setString(1, m_NIF);
+	        rs = ps.executeQuery();
+	        rs.next();
+
+	        int tipo = rs.getInt(1);
+
+	        rs.close();
+	        ps.close();
+
+	        // Actualizamos la reserva del hospital
+	        ps = con.prepareStatement(
+	            "UPDATE reserva_hospital SET cantidad = cantidad + ? " +
+	            "WHERE id_hospital = ? AND id_tipo_sangre = ?");
+
+	        ps.setFloat(1, m_Cantidad);
+	        ps.setInt(2, m_ID_Hospital);
+	        ps.setInt(3, tipo);
+	        ps.executeUpdate();
+
+	        con.commit();
+
+	    } catch (SQLException e) {
+
+	        if (con != null) {
+	            con.rollback(); } 
+
+	        logger.error(e.getMessage());
+	        throw e;
+
+	    } finally {
+
+	        try { if (rs != null) rs.close(); } catch (SQLException e) {}
+	        try { if (ps != null) ps.close(); } catch (SQLException e) {}
+	        try { if (con != null) con.close(); } catch (SQLException e) {}
+	    }
+		
 		
 		
 	}
@@ -119,18 +205,135 @@ public class EsqueletoGestionDonacionesSangre {
 		CallableStatement cll_reinicia=null;
 		Connection conn = null;
 		
-		try {
-			//Reinicio filas
-			conn = pool.getConnection();
-			cll_reinicia = conn.prepareCall("{call inicializa_test}");
-			cll_reinicia.execute();
-		} catch (SQLException e) {				
-			logger.error(e.getMessage());			
-		} finally {
-			if (cll_reinicia!=null) cll_reinicia.close();
-			if (conn!=null) conn.close();
 		
-		}			
+		// Tests del metodo realizar_donacion() :
+		// Test 1: Todo funciona bien
+		System.out.println("TEST DONACION 1: Todo funciona bien");
 		
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 1 OK");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 1 MAL");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }	
+	    
+	    
+	    //Test 2: El donante no existe
+		System.out.println("TEST DONACION 2: El donante no existe");
+		
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("inexistente", 1, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 2 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 2 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 3: El hospital no existe
+		System.out.println("TEST DONACION 3: El hospital no existe");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 999, 0.3f, new Date());
+
+	        System.out.println("TEST DONACION 3 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 3 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 4: Se exceden 0.45L de sangre
+		System.out.println("TEST DONACION 4: Se exceden 0.45L de sangre");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, 0.6f, new Date());
+
+	        System.out.println("TEST DONACION 4 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 4 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    // Test 5: Cantidad negativa de sangre
+		System.out.println("TEST DONACION 5: Cantidad negativa de sangre");
+
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        realizar_donacion("12345678A", 1, -0.2f, new Date());
+
+	        System.out.println("TEST DONACION 5 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 5 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+	    
+	    
+	    // Test 6: Segunda donacion antes de 15 dias
+	    System.out.println("TEST DONACION 6: Segunda donacion antes de 15 dias");
+	    
+	    try {
+	        conn = pool.getConnection();
+	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+	        cll_reinicia.execute();
+
+	        // Primera donacion correcta
+	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2025-01-10"));
+
+	        // Segunda donacion (solo 5 dias despues)
+	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2025-01-15"));
+
+	        System.out.println("TEST DONACION 6 MAL");
+
+	    } catch (SQLException e) {
+	        System.out.println("TEST DONACION 6 OK");
+
+	    } finally {
+	        if (cll_reinicia != null) cll_reinicia.close();
+	        if (conn != null) conn.close();
+	    }
+
 	}
 }
