@@ -32,28 +32,10 @@ public class EsqueletoGestionDonacionesSangre {
 	private static final String script_path = "sql/";
 
 	public static void main(String[] args) throws SQLException{		
-		try {
 	        tests();
 
-	        System.out.println("\n--- CONSULTA TRASPASOS ---");
-
-	        // Caso correcto
-	        consulta_traspasos("Tipo A.");
-
-	        // Caso con error controlado
-	        try {
-	            consulta_traspasos("XYZ");
-	        } catch (GestionDonacionesSangreException e) {
-	            System.out.println("Error controlado: " + e.getMessage());
-	        }
-
 	        System.out.println("FIN.............");
-
-	    } catch (SQLException e) {
-	        // Error inesperado
-	        System.out.println("Error SQL: " + e.getMessage());
-	    }
-	}
+	} 
 	
 	public static void realizar_donacion(String m_NIF, int m_ID_Hospital,
 			float m_Cantidad,  Date m_Fecha_Donacion) throws SQLException {
@@ -153,14 +135,12 @@ public class EsqueletoGestionDonacionesSangre {
 
 	        con.commit();
 			
-		} catch (SQLException e) {
-			//Completar por el alumno (YA)			
+		} catch (SQLException e) {			
 			if (con != null) con.rollback();
 			logger.error(e.getMessage());
 			throw e;		
 
 		} finally {
-			/*A rellenar por el alumno (YA)*/
 			if (rs != null) rs.close();
 	        if (st != null) st.close();
 	        if (con != null) con.close();
@@ -183,18 +163,44 @@ public class EsqueletoGestionDonacionesSangre {
 		CallableStatement cll_reinicia=null;
 		Connection conn = null;
 		
+		// TEST CONSULTA 1: caso correcto
 		try {
-			//Reinicio filas
-			conn = pool.getConnection();
-			cll_reinicia = conn.prepareCall("{call inicializa_test}");
-			cll_reinicia.execute();
-		} catch (SQLException e) {				
-			logger.error(e.getMessage());			
+		    conn = pool.getConnection();
+		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
+		    cll_reinicia.execute();
+
+		    consulta_traspasos("Tipo A.");
+		    System.out.println("TEST CONSULTA 1 OK");
+
+		} catch (SQLException e) {
+			logger.error(e.getMessage());
+		    System.out.println("TEST CONSULTA 1 MAL");
+
 		} finally {
-			if (cll_reinicia!=null) cll_reinicia.close();
-			if (conn!=null) conn.close();
+		    if (cll_reinicia != null) cll_reinicia.close();
+		    if (conn != null) conn.close();
+		    cll_reinicia = null;
+		    conn = null;
+		}
 		
-		}			
+		// TEST CONSULTA 2: tipo inexistente
+		try {
+		    conn = pool.getConnection();
+		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
+		    cll_reinicia.execute();
+
+		    consulta_traspasos("XYZ");
+		    System.out.println("TEST CONSULTA 2 MAL");
+
+		} catch (SQLException e) {
+			logger.error(e.getMessage());
+		    System.out.println("TEST CONSULTA 2 OK");
+		}finally {
+		    if (cll_reinicia != null) cll_reinicia.close();
+		    if (conn != null) conn.close();
+		    cll_reinicia = null;
+		    conn = null;
+		}
 		
 	}
 }
