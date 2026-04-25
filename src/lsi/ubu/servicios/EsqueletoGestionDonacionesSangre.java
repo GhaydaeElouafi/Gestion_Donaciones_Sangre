@@ -4,6 +4,8 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +32,10 @@ public class EsqueletoGestionDonacionesSangre {
 	private static final String script_path = "sql/";
 
 	public static void main(String[] args) throws SQLException{		
-		tests();
+	        tests();
 
-		System.out.println("FIN.............");
-	}
+	        System.out.println("FIN.............");
+	} 
 	
 	public static void realizar_donacion(String m_NIF, int m_ID_Hospital,
 			float m_Cantidad,  Date m_Fecha_Donacion) throws SQLException {
@@ -311,21 +313,62 @@ public class EsqueletoGestionDonacionesSangre {
 				
 		PoolDeConexiones pool = PoolDeConexiones.getInstance();
 		Connection con=null;
-		
-
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		PreparedStatement stCheck = null;
+		ResultSet rsCheck = null;
 	
 		try{
 			con = pool.getConnection();
-			//Completar por el alumno
-
-		} catch (SQLException e) {
-			//Completar por el alumno			
 			
+			String check = "SELECT id_tipo_sangre FROM tipo_sangre WHERE descripcion = ?";
+	        stCheck = con.prepareStatement(check);
+	        stCheck.setString(1, m_Tipo_Sangre);
+
+	        rsCheck = stCheck.executeQuery();
+
+	        if (!rsCheck.next()) {
+	            throw new GestionDonacionesSangreException(
+	                GestionDonacionesSangreException.TIPO_SANGRE_NO_EXISTE
+	            );
+	        }
+	       
+			String sql = "SELECT t.id_traspaso, t.cantidad, t.fecha_traspaso, " +
+                    "h.nombre, ts.descripcion " +
+                    "FROM traspaso t " +
+                    "JOIN hospital h ON t.id_hospital_destino = h.id_hospital " +
+                    "JOIN tipo_sangre ts ON t.id_tipo_sangre = ts.id_tipo_sangre " +
+                    "WHERE ts.descripcion = ? " +
+                    "ORDER BY t.id_hospital_destino, t.fecha_traspaso";
+
+			st = con.prepareStatement(sql);
+	        st.setString(1, m_Tipo_Sangre);
+
+	        rs = st.executeQuery();
+
+	        while (rs.next()) {
+	            System.out.println(
+	                rs.getInt("id_traspaso") + " - " +
+	                rs.getString("nombre") + " - " +
+	                rs.getString("descripcion") + " - " +
+	                rs.getFloat("cantidad") + " - " +
+	                rs.getDate("fecha_traspaso")
+	            );
+	        }
+
+	        con.commit();
+			
+		} catch (SQLException e) {			
+			if (con != null) con.rollback();
 			logger.error(e.getMessage());
 			throw e;		
 
 		} finally {
-			/*A rellenar por el alumno*/
+			if (rs != null) rs.close();
+	        if (st != null) st.close();
+	        if (con != null) con.close();
+	        if (stCheck != null) stCheck.close();
+	        if (rsCheck != null) rsCheck.close();
 		}		
 	}
 	
@@ -343,7 +386,48 @@ public class EsqueletoGestionDonacionesSangre {
 		CallableStatement cll_reinicia=null;
 		Connection conn = null;
 		
+    // Tests del metodo consulta_traspasos() :
+		// TEST CONSULTA 1: caso correcto
+		try {
+		    conn = pool.getConnection();
+		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
+		    cll_reinicia.execute();
+
+		    consulta_traspasos("Tipo A.");
+		    System.out.println("TEST CONSULTA 1 OK");
+
+		} catch (SQLException e) {
+			logger.error(e.getMessage());
+		    System.out.println("TEST CONSULTA 1 MAL");
+
+		} finally {
+		    if (cll_reinicia != null) cll_reinicia.close();
+		    if (conn != null) conn.close();
+		    cll_reinicia = null;
+		    conn = null;
 		}
+		
+		// TEST CONSULTA 2: tipo inexistente
+		try {
+		    conn = pool.getConnection();
+		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
+		    cll_reinicia.execute();
+
+		    consulta_traspasos("XYZ");
+		    System.out.println("TEST CONSULTA 2 MAL");
+
+		} catch (SQLException e) {
+			logger.error(e.getMessage());
+		    System.out.println("TEST CONSULTA 2 OK");
+		}finally {
+		    if (cll_reinicia != null) cll_reinicia.close();
+		    if (conn != null) conn.close();
+		    cll_reinicia = null;
+		    conn = null;
+		}
+
+		}
+    // Tests del metodo anular_traspaso() :
 		// TEST 1: caso correcto
 		try {
 			conn = pool.getConnection();

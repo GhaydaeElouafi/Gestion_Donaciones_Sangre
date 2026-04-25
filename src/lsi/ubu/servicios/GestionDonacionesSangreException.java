@@ -36,7 +36,7 @@ public class GestionDonacionesSangreException extends SQLException {
 
 	public GestionDonacionesSangreException(int code) {
 		codigo = code;
-		String mensaje = null;
+		this.mensaje = null;
 
 		switch (code) {
 		case DONANTE_NO_EXISTE:
