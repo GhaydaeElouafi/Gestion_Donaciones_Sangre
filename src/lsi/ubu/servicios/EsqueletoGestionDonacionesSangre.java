@@ -32,10 +32,27 @@ public class EsqueletoGestionDonacionesSangre {
 	private static final String script_path = "sql/";
 
 	public static void main(String[] args) throws SQLException{		
-		tests();
-		consulta_traspasos("Tipo A.");
+		try {
+	        tests();
 
-		System.out.println("FIN.............");
+	        System.out.println("\n--- CONSULTA TRASPASOS ---");
+
+	        // Caso correcto
+	        consulta_traspasos("Tipo A.");
+
+	        // Caso con error controlado
+	        try {
+	            consulta_traspasos("XYZ");
+	        } catch (GestionDonacionesSangreException e) {
+	            System.out.println("Error controlado: " + e.getMessage());
+	        }
+
+	        System.out.println("FIN.............");
+
+	    } catch (SQLException e) {
+	        // Error inesperado
+	        System.out.println("Error SQL: " + e.getMessage());
+	    }
 	}
 	
 	public static void realizar_donacion(String m_NIF, int m_ID_Hospital,
