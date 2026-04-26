@@ -537,7 +537,7 @@ public class EsqueletoGestionDonacionesSangre {
 	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
 	        cll_reinicia.execute();
 
-	        realizar_donacion("12345678A", 1, 0.3f, new Date());
+	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2026-01-01"));
 
 	        System.out.println("TEST DONACION 1 OK");
 
