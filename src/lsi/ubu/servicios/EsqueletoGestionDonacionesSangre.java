@@ -97,7 +97,7 @@ public class EsqueletoGestionDonacionesSangre {
 
 	        // Insertamos la donacion
 	        ps = con.prepareStatement(
-	            "INSERT INTO donacion (nif_donante, cantidad, fecha_donacion) VALUES (?, ?, ?)");
+	            "INSERT INTO donacion (id_donacion, nif_donante, cantidad, fecha_donacion) VALUES (seq_donacion.NEXTVAL, ?, ?, ?)");
 	        ps.setString(1, m_NIF);
 	        ps.setFloat(2, m_Cantidad);
 	        ps.setDate(3, new java.sql.Date(m_Fecha_Donacion.getTime()));
@@ -161,6 +161,7 @@ public class EsqueletoGestionDonacionesSangre {
 	
 		try{
 			con = pool.getConnection();
+			con.setAutoCommit(false);
 			// comprobar tipo de sangre
 			ps = con.prepareStatement("select count(*) from tipo_sangre where id_tipo_sangre = ?");
 			ps.setInt(1, m_ID_Tipo_Sangre);
@@ -315,23 +316,10 @@ public class EsqueletoGestionDonacionesSangre {
 		Connection con=null;
 		PreparedStatement st = null;
 		ResultSet rs = null;
-		PreparedStatement stCheck = null;
-		ResultSet rsCheck = null;
 	
 		try{
 			con = pool.getConnection();
 			
-			String check = "SELECT id_tipo_sangre FROM tipo_sangre WHERE descripcion = ?";
-	        stCheck = con.prepareStatement(check);
-	        stCheck.setString(1, m_Tipo_Sangre);
-
-	        rsCheck = stCheck.executeQuery();
-
-	        if (!rsCheck.next()) {
-	            throw new GestionDonacionesSangreException(
-	                GestionDonacionesSangreException.TIPO_SANGRE_NO_EXISTE
-	            );
-	        }
 	       
 	        String sql = "SELECT t.id_traspaso, t.cantidad, t.fecha_traspaso, " +
 	                "h.nombre, ts.descripcion, r.cantidad AS reserva " +
@@ -347,8 +335,12 @@ public class EsqueletoGestionDonacionesSangre {
 	        st.setString(1, m_Tipo_Sangre);
 
 	        rs = st.executeQuery();
+	        
+	        boolean hayResultados = false;
 
 	        while (rs.next()) {
+	            hayResultados = true;
+
 	            System.out.println(
 	                rs.getInt("id_traspaso") + " - " +
 	                rs.getString("nombre") + " - " +
@@ -359,7 +351,11 @@ public class EsqueletoGestionDonacionesSangre {
 	            );
 	        }
 
-	        con.commit();
+	        if (!hayResultados) {
+	            throw new GestionDonacionesSangreException(
+	                GestionDonacionesSangreException.TIPO_SANGRE_NO_EXISTE
+	            );
+	        }
 			
 		} catch (SQLException e) {			
 			if (con != null) con.rollback();
@@ -370,8 +366,6 @@ public class EsqueletoGestionDonacionesSangre {
 			if (rs != null) rs.close();
 	        if (st != null) st.close();
 	        if (con != null) con.close();
-	        if (stCheck != null) stCheck.close();
-	        if (rsCheck != null) rsCheck.close();
 		}		
 	}
 	
@@ -392,13 +386,33 @@ public class EsqueletoGestionDonacionesSangre {
     // Tests del metodo consulta_traspasos() :
 		// TEST CONSULTA 1: caso correcto
 		System.out.println("\nTEST METODO CONSULTA_TRAPASOS\n");
+		PreparedStatement psCheck = null;
+		ResultSet rsCheck = null;
 		try {
-		    conn = pool.getConnection();
+			conn = pool.getConnection();
+
 		    cll_reinicia = conn.prepareCall("{call inicializa_test}");
 		    cll_reinicia.execute();
 
+		    System.out.println("Salida obtenida:");
 		    consulta_traspasos("Tipo A.");
-		    System.out.println("TEST CONSULTA 1 OK");
+
+		    // comprobar que hay datos en BD 
+		    psCheck = conn.prepareStatement(
+		        "SELECT COUNT(*) FROM traspaso t " +
+		        "JOIN tipo_sangre ts ON t.id_tipo_sangre = ts.id_tipo_sangre " +
+		        "WHERE ts.descripcion = ?"
+		    );
+
+		    psCheck.setString(1, "Tipo A.");
+		    rsCheck = psCheck.executeQuery();
+		    rsCheck.next();
+
+		    if (rsCheck.getInt(1) > 0) {
+		        System.out.println("TEST CONSULTA 1 OK\n");
+		    } else {
+		        System.out.println("TEST CONSULTA 1 MAL");
+		    }
 
 		} catch (SQLException e) {
 			logger.error(e.getMessage());
@@ -529,25 +543,41 @@ public class EsqueletoGestionDonacionesSangre {
 
 		// Tests del metodo realizar_donacion() :
 		// Test 1: Todo funciona bien
-		System.out.println("\nTEST METODO REALIZAR_DONACION\n");
-		System.out.println("TEST DONACION 1: Todo funciona bien");
-		
-	    try {
-	        conn = pool.getConnection();
-	        cll_reinicia = conn.prepareCall("{call inicializa_test}");
-	        cll_reinicia.execute();
+		// Test 1: Todo funciona bien
+				System.out.println("\nTEST METODO REALIZAR_DONACION\n");
+				System.out.println("TEST DONACION 1: Todo funciona bien");
+				
+			    try {
+			        conn = pool.getConnection();
+			        cll_reinicia = conn.prepareCall("{call inicializa_test}");
+			        cll_reinicia.execute();
 
-	        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2026-01-01"));
+			        realizar_donacion("12345678A", 1, 0.3f, java.sql.Date.valueOf("2026-01-01"));
 
-	        System.out.println("TEST DONACION 1 OK");
+			        // Comprobamos la base de datos
+		                 PreparedStatement ps = conn.prepareStatement(
+		                    "SELECT COUNT(*) FROM donacion WHERE nif_donante = ? AND fecha_donacion = ?");
+		                 ps.setString(1, "12345678A");
+		                 ps.setDate(2, java.sql.Date.valueOf("2026-01-01"));
+		                 ResultSet rs = ps.executeQuery();
+		                 rs.next();
 
-	    } catch (SQLException e) {
-	        System.out.println("TEST DONACION 1 MAL");
+		                 if (rs.getInt(1) == 1) {
+		                     System.out.println("TEST DONACION 1 OK");
+		                 } else {
+		                     System.out.println("TEST DONACION 1 MAL (no se ha insertado la donacion)");
+		                 }
 
-	    } finally {
-	        if (cll_reinicia != null) cll_reinicia.close();
-	        if (conn != null) conn.close();
-	    }	
+		                 rs.close();
+		                 ps.close();
+
+			    } catch (SQLException e) {
+			        System.out.println("TEST DONACION 1 MAL");
+
+			    } finally {
+			        if (cll_reinicia != null) cll_reinicia.close();
+			        if (conn != null) conn.close();
+			    }
 	    
 	    
 	    //Test 2: El donante no existe
